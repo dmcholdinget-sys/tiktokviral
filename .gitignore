@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.local/
+media/
+staticfiles/
+*.sqlite3
+
+.deployment/
+
+.ruff_cache/

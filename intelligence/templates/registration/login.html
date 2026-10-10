@@ -1,0 +1,1 @@
+{% extends "intelligence/base.html" %}{% block content %}<div class="eyebrow">Welcome back</div><h1>Sign in to your workspace</h1><p class="muted">Review opportunities and coordinate your publishing team.</p><div class="panel" style="max-width:460px"><form method="post">{% csrf_token %}{{ form.as_p }}<button>Sign in</button></form></div>{% endblock %}

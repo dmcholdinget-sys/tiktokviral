@@ -1,0 +1,79 @@
+name: tiktokerviral_vps
+x-app: &app
+  image: tiktokerviral-app:local
+  build:
+    context: ..
+    dockerfile: deployment/Dockerfile
+  env_file: ../.deployment/runtime.env
+  environment:
+    DJANGO_SETTINGS_MODULE: config.deployment
+    POSTGRES_HOST: db
+    POSTGRES_PORT: "5432"
+    REDIS_URL: redis://redis:6379/0
+  volumes:
+    - private_media:/app/media
+    - beat_state:/app/.local
+    - static_files:/app/staticfiles
+  init: true
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks: [private]
+services:
+  db:
+    image: postgres@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+    env_file: ../.deployment/database.env
+    restart: unless-stopped
+    volumes: [database:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [private]
+  redis:
+    image: redis@sha256:4fa24486b8bcca8eec45ee0eb166edc674795e53a2b53d1a9ef263eecebaac85
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [private]
+  web:
+    <<: *app
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8000/accounts/login/').status == 200"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  worker:
+    <<: *app
+    command: celery -A config worker --loglevel=INFO --concurrency=2
+  beat:
+    <<: *app
+    command: celery -A config beat --loglevel=INFO --schedule=/app/.local/celerybeat-schedule
+  gateway:
+    image: nginx:stable-alpine
+    ports: ["16700:80"]
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_files:/static:ro
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    networks: [private]
+volumes:
+  database:
+  redis_data:
+  private_media:
+  beat_state:
+  static_files:
+networks:
+  private:

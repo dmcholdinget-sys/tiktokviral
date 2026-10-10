@@ -1,0 +1,22 @@
+name: tiktokviral
+services:
+  db:
+    image: postgres@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+    env_file: .env
+    ports: ["127.0.0.1:54329:5432"]
+    volumes: ["./.local/postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis@sha256:4fa24486b8bcca8eec45ee0eb166edc674795e53a2b53d1a9ef263eecebaac85
+    command: redis-server --appendonly yes
+    ports: ["127.0.0.1:63799:6379"]
+    volumes: ["./.local/redis:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
